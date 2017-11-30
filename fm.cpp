@@ -1,6 +1,6 @@
 /*
  * fm.cpp
- * A library for SeeedStudio seeeduino GPRS shield 
+ * A library for SeeedStudio seeeduino GPRS shield
  *
  * Copyright (c) 2013 seeed technology inc.
  * Author        :   lawliet zou
@@ -27,7 +27,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
- 
+
 #include "fm.h"
 
 int FM::powerOn(void)
@@ -44,7 +44,7 @@ int FM::powerOn(void)
         else
             fmPower = 1;
     }
-    
+
     return 0;
 }
 
@@ -65,7 +65,7 @@ int FM::setFreq(int freq)
     char cmd[30];
     if(!fmPower)
         return -1;
-        
+
     if(freq >= 875 && freq <= 1080){ //87.5MHZ~108.0MHZ
         sprintf(cmd,"AT+FMFREQ=%d\r\n",freq);
         if(0 != sendCmdAndWaitForResp(cmd, "OK", DEFAULT_TIMEOUT)){
@@ -89,7 +89,7 @@ int FM::setVolume(int volume)
             ERROR("\r\nERROR:fmSetVolume\r\n");
             return -1;
         }
-    }    
+    }
     return 0;
 }
 
@@ -100,7 +100,7 @@ int FM::scanChannel(void)
     int j = 0;
     if(!fmPower)
         return -1;
-        
+
     fmChannelCount = 0;
     fmCurrentChannel = 0;
     cleanBuffer(gprsBuffer,128);
@@ -133,7 +133,7 @@ int FM::checkSignalStrength(int channelFreq)
     int signalStrength;
     if(!fmPower)
         return -1;
-    
+
     sprintf(cmd,"AT+FMSIGNAL=%d\r\n",channelFreq);
     sendCmd(cmd);
     readBuffer(gprsBuffer,sizeof(gprsBuffer),DEFAULT_TIMEOUT);

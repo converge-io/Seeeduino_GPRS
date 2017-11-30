@@ -1,6 +1,6 @@
 /*
  * sim800.h
- * A library for SeeedStudio seeeduino GPRS shield 
+ * A library for SeeedStudio seeeduino GPRS shield
  *
  * Copyright (c) 2013 seeed technology inc.
  * Author        :   lawliet zou
@@ -31,22 +31,22 @@
 #ifndef __SIM800_H__
 #define __SIM800_H__
 
-#include "Arduino.h"
-#include <SoftwareSerial.h>
+#include <mbed.h>
+#include "SEGGER_RTT.h"
+
 
 #define TRUE                    1
 #define FALSE                   0
 
-#define SIM800_TX_PIN           8
-#define SIM800_RX_PIN           7
-#define SIM800_POWER_PIN        9
-#define SIM800_POWER_STATUS     12
+#define SIM800_TX_PIN           p11
+#define SIM800_RX_PIN           p12
+#define SIM800_RESET_PIN        p24
 
 #define UART_DEBUG
 
 #ifdef UART_DEBUG
-#define ERROR(x)            Serial.println(x)
-#define DEBUG(x)            Serial.println(x);
+#define ERROR(x)            SEGGER_RTT_printf(0,x);SEGGER_RTT_printf(0,"\n");
+#define DEBUG(x)            SEGGER_RTT_printf(0,x);SEGGER_RTT_printf(0,"\n");
 #else
 #define ERROR(x)
 #define DEBUG(x)
@@ -57,46 +57,47 @@
 /** SIM800 class.
  *  Used for SIM800 communication. attention that SIM800 module communicate with MCU in serial protocol
  */
+
 class SIM800
 {
 
 public:
-    /** Create SIM800 Instance 
+    /** Create SIM800 Instance
      *  @param tx   uart transmit pin to communicate with SIM800
      *  @param rx   uart receive pin to communicate with SIM800
      *  @param baudRate baud rate of uart communication
      */
-    SIM800(int baudRate):serialSIM800(SIM800_TX_PIN,SIM800_RX_PIN){
-        powerPin = SIM800_POWER_PIN;
-        pinMode(powerPin,OUTPUT);
-        serialSIM800.begin(baudRate);
+    SIM800(int baudRate):serialSIM800(SIM800_TX_PIN,SIM800_RX_PIN),resetPin(SIM800_RESET_PIN){
+        serialSIM800.baud(baudRate);
+        resetPin.input();
+        resetPin.mode(PullNone);
     };
-    
+
     /** Power on SIM800
      */
     void preInit(void);
-    
+
     /** Check if SIM800 readable
      */
     int checkReadable(void);
-    
+
     /** read from SIM800 module and save to buffer array
      *  @param  buffer  buffer array to save what read from SIM800 module
      *  @param  count   the maximal bytes number read from SIM800 module
-     *  @param  timeOut time to wait for reading from SIM800 module 
+     *  @param  timeOut time to wait for reading from SIM800 module
      *  @returns
      *      0 on success
      *      -1 on error
      */
     int readBuffer(char* buffer,int count, unsigned int timeOut = DEFAULT_TIMEOUT);
 
-    
+
     /** clean Buffer
      *  @param buffer   buffer to clean
      *  @param count    number of bytes to clean
      */
     void cleanBuffer(char* buffer, int count);
-    
+
     /** send AT command to SIM800 module
      *  @param cmd  command array which will be send to GPRS module
      */
@@ -105,18 +106,18 @@ public:
     /**send "AT" to SIM800 module
      */
     int sendATTest(void);
-    
+
     /**send '0x1A' to SIM800 Module
      */
     void sendEndMark(void);
-    
+
     /** check SIM800 module response before time out
      *  @param  *resp   correct response which SIM800 module will return
      *  @param  *timeout    waiting seconds till timeout
      *  @returns
      *      0 on success
      *      -1 on error
-     */ 
+     */
     int waitForResp(const char* resp, unsigned timeout);
 
     /** send AT command to GPRS module and wait for correct response
@@ -129,16 +130,11 @@ public:
      */
     int sendCmdAndWaitForResp(const char* cmd, const char *resp, unsigned timeout);
 
-
-    /** used for serial debug, you can specify tx and rx pin and then communicate with GPRS module with common AT commands
-     */
-    void serialDebug(void);
-    
-    int powerPin;
-    SoftwareSerial serialSIM800;
+    Serial serialSIM800;
+    DigitalInOut resetPin;
 
 private:
-    
+  Timer timeoutTimer;
 };
 
 #endif

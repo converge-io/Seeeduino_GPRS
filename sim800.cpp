@@ -1,6 +1,6 @@
 /*
  * sim800.cpp
- * A library for SeeedStudio seeeduino GPRS shield 
+ * A library for SeeedStudio seeeduino GPRS shield
  *
  * Copyright (c) 2013 seeed technology inc.
  * Author        :   lawliet zou
@@ -32,56 +32,55 @@
 
 void SIM800::preInit(void)
 {
-    pinMode(SIM800_POWER_STATUS,INPUT);
-    delay(10);
-    if(LOW == digitalRead(SIM800_POWER_STATUS))
+    //If we can't talk to the module, reset it
+    if(sendATTest() != 0)
     {
-        if(sendATTest() != 0)
-        {
-            delay(800);
-            digitalWrite(powerPin,HIGH);
-            delay(200);
-            digitalWrite(powerPin,LOW);
-            delay(2000);
-            digitalWrite(powerPin,HIGH);
-            delay(3000);  
-        }
-        while(sendATTest() != 0);                
-        //Serial.println("Init O.K!");         
+        resetPin.output();
+        resetPin = 0;
+        wait(2);  //Pull the reset low for 2 seconds
+        resetPin.input();
+        wait(3); //Release and let it pull itself high again.
     }
-    else
-    {
-        Serial.println("Power check failed!");  
-    }
+    while(sendATTest() != 0);
+    SEGGER_RTT_printf(0,"Pre-Init O.K!\n");
 }
 
 int SIM800::checkReadable(void)
 {
-    return serialSIM800.available();
+    return serialSIM800.readable();
 }
 
 int SIM800::readBuffer(char *buffer,int count, unsigned int timeOut)
 {
     int i = 0;
     unsigned long timerStart,timerEnd;
-    timerStart = millis();
+    timeoutTimer.reset();
+    timeoutTimer.start();
+    timerStart = timeoutTimer.read_ms();
+
     while(1) {
-        while (serialSIM800.available()) {
-            char c = serialSIM800.read();
-            if (c == '\r' || c == '\n') c = '$';                            
+        SEGGER_RTT_printf(0,"1\n");
+        while (serialSIM800.readable()) {
+            char c = serialSIM800.getc();
+            if (c == '\r' || c == '\n') c = '$';
             buffer[i++] = c;
             if(i > count-1)break;
         }
         if(i > count-1)break;
-        timerEnd = millis();
+        timerEnd = timeoutTimer.read_ms();
         if(timerEnd - timerStart > 1000 * timeOut) {
             break;
         }
     }
-    delay(500);
-    while(serialSIM800.available()) {   // display the other thing..
-        serialSIM800.read();
+    SEGGER_RTT_printf(0,"2\n");
+    SEGGER_RTT_printf(0,"3\n");
+    //wait(0.5);
+
+    while(serialSIM800.readable()) {   // display the other thing..
+      SEGGER_RTT_printf(0,"4\n");
+      serialSIM800.getc();
     }
+    SEGGER_RTT_printf(0,"5\n");
     return 0;
 }
 
@@ -94,7 +93,7 @@ void SIM800::cleanBuffer(char *buffer, int count)
 
 void SIM800::sendCmd(const char* cmd)
 {
-    serialSIM800.write(cmd);
+    serialSIM800.printf(cmd);
 }
 
 int SIM800::sendATTest(void)
@@ -108,22 +107,23 @@ int SIM800::waitForResp(const char *resp, unsigned int timeout)
     int len = strlen(resp);
     int sum=0;
     unsigned long timerStart,timerEnd;
-    timerStart = millis();
-    
+    timeoutTimer.reset();
+    timeoutTimer.start();
+    timerStart = timeoutTimer.read_ms();
     while(1) {
-        if(serialSIM800.available()) {
-            char c = serialSIM800.read();
+        if(serialSIM800.readable()) {
+            char c = serialSIM800.getc();
             sum = (c==resp[sum]) ? sum+1 : 0;
             if(sum == len)break;
         }
-        timerEnd = millis();
+        timerEnd = timeoutTimer.read_ms();
         if(timerEnd - timerStart > 1000 * timeout) {
             return -1;
         }
     }
 
-    while(serialSIM800.available()) {
-        serialSIM800.read();
+    while(serialSIM800.readable()) {
+        serialSIM800.getc();
     }
 
     return 0;
@@ -131,7 +131,7 @@ int SIM800::waitForResp(const char *resp, unsigned int timeout)
 
 void SIM800::sendEndMark(void)
 {
-    serialSIM800.println((char)26);
+    serialSIM800.putc((char)26);
 }
 
 
@@ -139,16 +139,4 @@ int SIM800::sendCmdAndWaitForResp(const char* cmd, const char *resp, unsigned ti
 {
     sendCmd(cmd);
     return waitForResp(resp,timeout);
-}
-
-void SIM800::serialDebug(void)
-{
-    while(1) {
-        if(serialSIM800.available()){
-            Serial.write(serialSIM800.read());
-        }
-        if(Serial.available()){     
-            serialSIM800.write(Serial.read()); 
-        }
-    }
 }

@@ -1,6 +1,6 @@
 /*
  * bluetooth.cpp
- * A library for SeeedStudio seeeduino GPRS shield 
+ * A library for SeeedStudio seeeduino GPRS shield
  *
  * Copyright (c) 2013 seeed technology inc.
  * Author        :   lawliet zou
@@ -27,7 +27,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
- 
+
 #include "bluetooth.h"
 
 int BlueTooth::powerOn(void)
@@ -61,7 +61,7 @@ int BlueTooth::powerOff(void)
                 bluetoothPower = 0;
             }
         }
-            
+
     }
     return 0;
 }
@@ -155,13 +155,13 @@ int BlueTooth::loopHandle(void)
     char gprsBuffer[100];
     cleanBuffer(gprsBuffer,100);
     while(1) {
-        if(serialSIM800.available()) {
+        if(serialSIM800.readable()) {
             break;
         }
-        delay(1000);
+        wait(1);
     }
     readBuffer(gprsBuffer,100,DEFAULT_TIMEOUT);
-    
+
     if(NULL != strstr(gprsBuffer,"+BTPAIRING:")){
         if(0 != acceptPairing()){
             return -1;
@@ -197,7 +197,7 @@ int BlueTooth::connectInSPP(int deviceID) //Serial Port Profile
 }
 
 int BlueTooth::recvInSPP(char* data)
-{   
+{
     char bluetoothBuffer[64];
     char * p = NULL;
     int count = 0;
@@ -205,8 +205,8 @@ int BlueTooth::recvInSPP(char* data)
         ERROR("\r\nERROR:AT+BTSPPGET\r\n");
         return -1;
     }
-    while(!serialSIM800.available()){
-        delay(200);
+    while(!serialSIM800.readable()){
+        wait(0.2);
     }
     readBuffer(bluetoothBuffer,64,DEFAULT_TIMEOUT);
     p = strstr(bluetoothBuffer,"+BTSPPDATA:");

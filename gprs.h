@@ -103,7 +103,7 @@ public:
      *      0 on success
      *      -1 on error
      */
-    int sendSMS(char* number, char* data);
+    int sendSMS(const char* number, const char* data);
 
     /** read SMS if getting a SMS message
      *  @param  buffer  buffer that get from GPRS module(when getting a SMS, GPRS module will return a buffer array)

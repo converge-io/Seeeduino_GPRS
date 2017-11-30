@@ -6,7 +6,7 @@
  * Author        :   lawliet zou
  * Create Time   :   Dec 2013
  * Change Log    :   2017-05-31 GPRS::readSMS modified to support SMS international
-                     increment the buffer to read the whole message 
+                     increment the buffer to read the whole message
                      Jose Zorrilla (jzorrilla@x-red.com)
  *
  * The MIT License (MIT)
@@ -48,15 +48,20 @@ int GPRS::init(void)
     return 0;
 
 #endif
+    SEGGER_RTT_printf(0,"Sending AT\n");
     if(sendCmdAndWaitForResp("AT\r\n","OK\r\n",DEFAULT_TIMEOUT*3)){
       return -1;
     }
+    SEGGER_RTT_printf(0,"Sending CFUN\n");
     if(sendCmdAndWaitForResp("AT+CFUN=1\r\n","OK\r\n",DEFAULT_TIMEOUT*3)){
       return -1;
     }
+    SEGGER_RTT_printf(0,"Checking SIM status\n");
     if(checkSIMStatus()) {
+      SEGGER_RTT_printf(0,"Sim status failed\n");
 		  return -1;
     }
+    SEGGER_RTT_printf(0,"Init done\n");
     return 0;
 
 }
@@ -66,15 +71,15 @@ bool GPRS::join(const char *apn, const char *userName, const char *passWord)
     char cmd[64];
     char ipAddr[32];
     char gprsBuffer[32];
-   
+
     //Select multiple connection
     //sim900_check_with_cmd("AT+CIPMUX=1\r\n","OK",DEFAULT_TIMEOUT,CMD);
-      
+
     cleanBuffer(ipAddr,32);
-    sendCmd("AT+CIFSR\r\n");    
+    sendCmd("AT+CIFSR\r\n");
     readBuffer(ipAddr,32,2);
-    
-    // If no IP address feedback than bring up wireless 
+
+    // If no IP address feedback than bring up wireless
     if( NULL != strstr(ipAddr, "ERROR") )
     {
         if( 0 != sendCmdAndWaitForResp("AT+CSTT?\r\n", apn, DEFAULT_TIMEOUT) )
@@ -84,24 +89,24 @@ bool GPRS::join(const char *apn, const char *userName, const char *passWord)
             sendCmd("\",\"");
             sendCmd(userName);
             sendCmd("\",\"");
-            sendCmd(passWord);        
+            sendCmd(passWord);
             sendCmdAndWaitForResp("\"\r\n","OK\r\n",DEFAULT_TIMEOUT*3);
         }
-        
+
         //Brings up wireless connection
         sendCmd("AT+CIICR\r\n");
-         
+
         //Get local IP address
         cleanBuffer(ipAddr,32);
         sendCmd("AT+CIFSR\r\n");
-        readBuffer(ipAddr,32,2);        
-    }          
-#if 0    
+        readBuffer(ipAddr,32,2);
+    }
+#if 0
     Serial.print("ipAddr: ");
     Serial.println(ipAddr);
 #endif
 
-    if(NULL != strstr(ipAddr,"AT+CIFSR")) {        
+    if(NULL != strstr(ipAddr,"AT+CIFSR")) {
         _ip = str_to_ip(ipAddr+11);
         if(_ip != 0) {
             return true;
@@ -114,7 +119,7 @@ uint32_t GPRS::str_to_ip(const char* str)
 {
     uint32_t ip = 0;
     char *p = (char*)str;
-    
+
     for(int i = 0; i < 4; i++) {
         ip |= atoi(p);
         p = strchr(p, '.');
@@ -145,14 +150,16 @@ int GPRS::checkSIMStatus(void)
     int count = 0;
     cleanBuffer(gprsBuffer,32);
     while(count < 3) {
+        SEGGER_RTT_printf(0,"Trying CPIN count = %d\n",count);
         sendCmd("AT+CPIN?\r\n");
         readBuffer(gprsBuffer,32,DEFAULT_TIMEOUT);
         if((NULL != strstr(gprsBuffer,"+CPIN: READY"))) {
             break;
         }
         count++;
-        delay(300);
+        wait(0.3);
     }
+    SEGGER_RTT_printf(0,"Leaving CPIN count = %d\n",count);
     if(count == 3) {
         return -1;
     }
@@ -161,12 +168,12 @@ int GPRS::checkSIMStatus(void)
 
 int GPRS::networkCheck(void)
 {
-    delay(1000);
+    wait(1);
     if(0 != sendCmdAndWaitForResp("AT+CGREG?\r\n","+CGREG: 0,1",DEFAULT_TIMEOUT*3)) {
         ERROR("ERROR:CGREG");
         return -1;
     }
-    delay(1000);
+    wait(1);
     if(0 != sendCmdAndWaitForResp("AT+CGATT?\r\n","+CGATT: 1",DEFAULT_TIMEOUT)) {
         ERROR("ERROR:CGATT");
         return -1;
@@ -174,22 +181,22 @@ int GPRS::networkCheck(void)
     return 0;
 }
 
-int GPRS::sendSMS(char *number, char *data)
+int GPRS::sendSMS(const char *number,const char *data)
 {
     char cmd[32];
     if(0 != sendCmdAndWaitForResp("AT+CMGF=1\r\n", "OK", DEFAULT_TIMEOUT)) { // Set message mode to ASCII
         ERROR("ERROR:CMGF");
         return -1;
     }
-    delay(500);
+    wait(0.5);
     snprintf(cmd, sizeof(cmd),"AT+CMGS=\"%s\"\r\n", number);
     if(0 != sendCmdAndWaitForResp(cmd,">",DEFAULT_TIMEOUT)) {
         ERROR("ERROR:CMGS");
         return -1;
     }
-    delay(1000);
-    serialSIM800.write(data);
-    delay(500);
+    wait(1);
+    serialSIM800.printf(data);
+    wait(0.5);
     sendEndMark();
     return 0;
 }
@@ -202,9 +209,9 @@ int GPRS::readSMS(int messageIndex, char *message, int length)
     char *p,*s;
 
     sendCmdAndWaitForResp("AT+CMGF=1\r\n","OK",DEFAULT_TIMEOUT);
-    delay(1000);
+    wait(1);
     sprintf(cmd,"AT+CMGR=%d\r\n",messageIndex);
-    serialSIM800.write(cmd);
+    serialSIM800.printf(cmd);
     cleanBuffer(gprsBuffer,144);
     readBuffer(gprsBuffer,144,DEFAULT_TIMEOUT);
 
@@ -235,15 +242,15 @@ int GPRS::callUp(char *number)
         ERROR("COLP");
         return -1;
     }
-    delay(1000);
+    wait(1);
     sprintf(cmd,"\r\nATD%s;\r\n", number);
-    serialSIM800.write(cmd);
+    serialSIM800.printf(cmd);
     return 0;
 }
 
 int GPRS::answer(void)
 {
-    serialSIM800.write("ATA\r\n");
+    serialSIM800.printf("ATA\r\n");
     return 0;
 }
 
@@ -261,17 +268,17 @@ int GPRS::connectTCP(const char *ip, int port)
 int GPRS::sendTCPData(char *data)
 {
     char cmd[32];
-    int len = strlen(data); 
+    int len = strlen(data);
     snprintf(cmd,sizeof(cmd),"AT+CIPSEND=%d\r\n",len);
     if(0 != sendCmdAndWaitForResp(cmd,">",2*DEFAULT_TIMEOUT)) {
         ERROR("ERROR:CIPSEND");
         return -1;
     }
-        
+
     if(0 != sendCmdAndWaitForResp(data,"SEND OK",2*DEFAULT_TIMEOUT)) {
         ERROR("ERROR:SendTCPData");
         return -1;
-    }     
+    }
     return 0;
 }
 
